@@ -1,0 +1,4 @@
+length=int(input("enter the length of the reactangle:"))
+whide=int(input("enter the whide of the reactangle:"))
+area=whide*length
+print(f"area of reactangle:{area}")
