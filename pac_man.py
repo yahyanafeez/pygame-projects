@@ -8,8 +8,8 @@ import random
 pygame.init()
 
 # Screen
-WIDTH = 600
-HEIGHT = 600
+WIDTH = 1000
+HEIGHT = 1000
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Mini Pac-Man")
@@ -20,7 +20,7 @@ clock = pygame.time.Clock()
 # Colors
 # --------------------
 BLACK = (0, 0, 0)
-YELLOW = (255, 255, 0)
+YELLOW = (255, 0, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 RED = (250, 218, 221)
@@ -34,7 +34,7 @@ pac_y = 300
 pac_radius = 25
 speed = 5
 
-mouth_angle = 0
+mouth_angle =0
 mouth_opening = True
 
 # Food
