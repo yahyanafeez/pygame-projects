@@ -11,13 +11,13 @@ SCREEN_HEIGHT = 900
 FPS = 60
 ROAD_WIDTH = 420
 ROAD_BORDER = 80
-LANE_COUNT = 5
+LANE_COUNT = 3
 LANE_WIDTH = ROAD_WIDTH // LANE_COUNT
 LINE_HEIGHT = 40
-PLAYER_WIDTH = 50
-PLAYER_HEIGHT = 100
-ENEMY_WIDTH = 50
-ENEMY_HEIGHT = 100
+PLAYER_WIDTH = 80
+PLAYER_HEIGHT = 200
+ENEMY_WIDTH = 80
+ENEMY_HEIGHT = 200
 SPAWN_INTERVAL = 1100  # milliseconds
 
 # Colors
@@ -25,6 +25,8 @@ COLOR_SKY = (43, 89, 144)
 COLOR_GRASS = (36, 110, 67)
 COLOR_ROAD = (56, 56, 56)
 COLOR_ROAD_BORDER = (194, 194, 194)
+COLOR_SIDEWALK_YELLOW = (255, 204, 0)
+COLOR_SIDEWALK_BLACK = (20, 20, 20)
 COLOR_LANE = (235, 235, 235)
 COLOR_PLAYER = (255, 44, 70)
 COLOR_ENEMY = (14, 170, 219)
@@ -61,28 +63,57 @@ class Road:
         """Create a grass texture pattern once and reuse it"""
         grass_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         grass_surface.fill(COLOR_GRASS)
-        
-        # Add grass texture with dots for a natural look
-        for _ in range(5000):
-            x = random.randint(0, SCREEN_WIDTH)
-            y = random.randint(0, SCREEN_HEIGHT)
-            size = random.randint(1, 2)
-            rand_offset = random.randint(-10, 10)
-            grass_color = tuple(max(0, min(255, c + rand_offset)) for c in COLOR_GRASS)
-            pygame.draw.circle(grass_surface, grass_color, (x, y), size)
-        
+
+        # Add grass blades and highlights for a lively look
+        for _ in range(5500):
+            x = random.randint(0, SCREEN_WIDTH - 1)
+            y = random.randint(0, SCREEN_HEIGHT - 1)
+            length = random.randint(4, 10)
+            angle = random.uniform(-0.4, 0.4)
+            blade_color = (
+                max(0, min(255, COLOR_GRASS[0] + random.randint(-20, 20))),
+                max(0, min(255, COLOR_GRASS[1] + random.randint(-35, 35))),
+                max(0, min(255, COLOR_GRASS[2] + random.randint(-15, 15)))
+            )
+            end_x = int(x + length * math.cos(angle))
+            end_y = int(y + length * math.sin(angle))
+            pygame.draw.line(grass_surface, blade_color, (x, y), (end_x, end_y), 1)
+
+        for _ in range(2500):
+            x = random.randint(0, SCREEN_WIDTH - 1)
+            y = random.randint(0, SCREEN_HEIGHT - 1)
+            dot_color = (
+                max(0, min(255, COLOR_GRASS[0] + random.randint(-10, 10))),
+                max(0, min(255, COLOR_GRASS[1] + random.randint(0, 25))),
+                max(0, min(255, COLOR_GRASS[2] + random.randint(-10, 10)))
+            )
+            grass_surface.set_at((x, y), dot_color)
+
         return grass_surface
 
     def update(self, speed):
         self.offset = (self.offset + speed * 0.6) % (LINE_HEIGHT * 2)
+
+    def draw_sidewalk(self, x, width):
+        tile_size = 24
+        rows = SCREEN_HEIGHT // tile_size + 1
+        cols = width // tile_size + 1
+        for row in range(rows):
+            for col in range(cols):
+                color = COLOR_SIDEWALK_YELLOW if (row + col) % 2 == 0 else COLOR_SIDEWALK_BLACK
+                tile_x = x + col * tile_size
+                tile_y = row * tile_size
+                pygame.draw.rect(self.screen, color, (tile_x, tile_y, tile_size, tile_size))
 
     def draw(self):
         self.screen.blit(self.grass_surface, (0, 0))
         
         road_x = (SCREEN_WIDTH - ROAD_WIDTH) // 2
         pygame.draw.rect(self.screen, COLOR_ROAD, (road_x, 0, ROAD_WIDTH, SCREEN_HEIGHT))
-        pygame.draw.rect(self.screen, COLOR_ROAD_BORDER, (road_x - ROAD_BORDER, 0, ROAD_BORDER, SCREEN_HEIGHT))
-        pygame.draw.rect(self.screen, COLOR_ROAD_BORDER, (road_x + ROAD_WIDTH, 0, ROAD_BORDER, SCREEN_HEIGHT))
+        self.draw_sidewalk(road_x - ROAD_BORDER, ROAD_BORDER)
+        self.draw_sidewalk(road_x + ROAD_WIDTH, ROAD_BORDER)
+        pygame.draw.rect(self.screen, COLOR_ROAD_BORDER, (road_x - ROAD_BORDER, 0, ROAD_BORDER, SCREEN_HEIGHT), 2)
+        pygame.draw.rect(self.screen, COLOR_ROAD_BORDER, (road_x + ROAD_WIDTH, 0, ROAD_BORDER, SCREEN_HEIGHT), 2)
 
         # Lane markers
         for lane in range(1, LANE_COUNT):
