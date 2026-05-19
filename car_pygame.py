@@ -6,8 +6,8 @@ import pygame
 # -----------------------------
 # Constants
 # -----------------------------
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 900
+SCREEN_HEIGHT = 900
 FPS = 60
 ROAD_WIDTH = 420
 ROAD_BORDER = 80
@@ -54,13 +54,31 @@ class Road:
     def __init__(self, screen):
         self.screen = screen
         self.offset = 0
+        # Pre-cache grass texture
+        self.grass_surface = self._create_grass_texture()
+
+    def _create_grass_texture(self):
+        """Create a grass texture pattern once and reuse it"""
+        grass_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        grass_surface.fill(COLOR_GRASS)
+        
+        # Add grass texture with dots for a natural look
+        for _ in range(5000):
+            x = random.randint(0, SCREEN_WIDTH)
+            y = random.randint(0, SCREEN_HEIGHT)
+            size = random.randint(1, 2)
+            rand_offset = random.randint(-10, 10)
+            grass_color = tuple(max(0, min(255, c + rand_offset)) for c in COLOR_GRASS)
+            pygame.draw.circle(grass_surface, grass_color, (x, y), size)
+        
+        return grass_surface
 
     def update(self, speed):
         self.offset = (self.offset + speed * 0.6) % (LINE_HEIGHT * 2)
 
     def draw(self):
-        self.screen.fill(COLOR_SKY)
-        pygame.draw.rect(self.screen, COLOR_GRASS, (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen.blit(self.grass_surface, (0, 0))
+        
         road_x = (SCREEN_WIDTH - ROAD_WIDTH) // 2
         pygame.draw.rect(self.screen, COLOR_ROAD, (road_x, 0, ROAD_WIDTH, SCREEN_HEIGHT))
         pygame.draw.rect(self.screen, COLOR_ROAD_BORDER, (road_x - ROAD_BORDER, 0, ROAD_BORDER, SCREEN_HEIGHT))
@@ -89,21 +107,59 @@ class Car:
         self.target_x = x
 
     def draw(self, surface):
-        points = self._get_car_shape()
-        pygame.draw.polygon(surface, COLOR_SHADOW, [(p[0] + 4, p[1] + 8) for p in points])
-        pygame.draw.polygon(surface, self.color, points)
-        pygame.draw.polygon(surface, COLOR_TEXT, [points[0], points[1], points[1], points[2]], 2)
-
-    def _get_car_shape(self):
         x, y = self.rect.center
         w = self.rect.width // 2
         h = self.rect.height // 2
-        return [
-            (x - w * 0.8, y - h),  # top-left
-            (x + w * 0.8, y - h),  # top-right
-            (x + w, y + h),        # bottom-right
-            (x - w, y + h),        # bottom-left
+        
+        # Draw shadow
+        shadow_points = [
+            (x - w * 0.9, y + h * 0.7),
+            (x + w * 0.9, y + h * 0.7),
+            (x + w * 0.7, y + h + 4),
+            (x - w * 0.7, y + h + 4)
         ]
+        pygame.draw.polygon(surface, COLOR_SHADOW, shadow_points)
+        
+        # Draw car body
+        body_points = [
+            (x - w * 0.8, y - h * 0.3),  # top-left
+            (x + w * 0.8, y - h * 0.3),  # top-right
+            (x + w * 0.9, y + h * 0.4),  # middle-right
+            (x + w * 0.9, y + h),        # bottom-right
+            (x - w * 0.9, y + h),        # bottom-left
+            (x - w * 0.9, y + h * 0.4),  # middle-left
+        ]
+        pygame.draw.polygon(surface, self.color, body_points)
+        pygame.draw.polygon(surface, (0, 0, 0), body_points, 2)
+        
+        # Draw windows (top and bottom)
+        window_top = [
+            (x - w * 0.6, y - h * 0.2),
+            (x + w * 0.6, y - h * 0.2),
+            (x + w * 0.5, y),
+            (x - w * 0.5, y),
+        ]
+        pygame.draw.polygon(surface, (100, 150, 200), window_top)
+        pygame.draw.polygon(surface, (0, 0, 0), window_top, 1)
+        
+        window_bottom = [
+            (x - w * 0.6, y + h * 0.2),
+            (x + w * 0.6, y + h * 0.2),
+            (x + w * 0.7, y + h * 0.7),
+            (x - w * 0.7, y + h * 0.7),
+        ]
+        pygame.draw.polygon(surface, (100, 150, 200), window_bottom)
+        pygame.draw.polygon(surface, (0, 0, 0), window_bottom, 1)
+        
+        # Draw wheels
+        wheel_radius = w * 0.35
+        wheel_left_y = y + h * 0.5
+        wheel_right_y = y + h * 0.5
+        pygame.draw.circle(surface, (30, 30, 30), (int(x - w * 0.7), int(wheel_left_y)), int(wheel_radius))
+        pygame.draw.circle(surface, (30, 30, 30), (int(x + w * 0.7), int(wheel_right_y)), int(wheel_radius))
+        # Wheel rims
+        pygame.draw.circle(surface, (100, 100, 100), (int(x - w * 0.7), int(wheel_left_y)), int(wheel_radius * 0.6))
+        pygame.draw.circle(surface, (100, 100, 100), (int(x + w * 0.7), int(wheel_right_y)), int(wheel_radius * 0.6))
 
 
 class Player(Car):

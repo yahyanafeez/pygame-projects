@@ -87,6 +87,18 @@ while running:
         direction = "DOWN"
 
     # --------------------
+    # Boundary collision
+    # --------------------
+    if pac_x - pac_radius < 0:
+        pac_x = pac_radius
+    if pac_x + pac_radius > WIDTH:
+        pac_x = WIDTH - pac_radius
+    if pac_y - pac_radius < 0:
+        pac_y = pac_radius
+    if pac_y + pac_radius > HEIGHT:
+        pac_y = HEIGHT - pac_radius
+
+    # --------------------
     # Mouth animation
     # --------------------
     if mouth_opening:

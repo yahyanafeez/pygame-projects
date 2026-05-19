@@ -1,33 +1,44 @@
 import pygame
-import sys
 
-# Initialize pygame
 pygame.init()
 
-# Create window
-width, height = 600, 400
-screen = pygame.display.set_mode((width, height))
-pygame.display.set_caption("Pygame Test")
+# size and position
+screen_height = 600
+screen_width = 900
 
-# Colors
-white = (255, 255, 255)
-blue = (0, 0, 255)
+rectangle_height = 100
+rectangle_width = 100
 
-# Game loop
+rectangle_x = 200
+rectangle_y = 200
+
+# colors
+green_colore = (0, 255, 0)
+
+# create screen
+main_screen = pygame.display.set_mode((screen_width, screen_height))
+
 running = True
+
 while running:
-    screen.fill(white)
 
-    # Draw a blue rectangle
-    pygame.draw.rect(screen, blue, (250, 150, 100, 50))
-
-    # Event handling
+    # events
     for event in pygame.event.get():
+
         if event.type == pygame.QUIT:
             running = False
 
+    # fill background
+    main_screen.fill((0, 0, 0))
+
+    # draw rectangle
+    pygame.draw.rect(
+        main_screen,
+        green_colore,
+        (rectangle_x, rectangle_y, rectangle_width, rectangle_height)
+    )
+
+    # update screen
     pygame.display.update()
 
-# Quit pygame
 pygame.quit()
-sys.exit()
