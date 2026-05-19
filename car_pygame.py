@@ -23,6 +23,8 @@ SPAWN_INTERVAL = 1100  # milliseconds
 # Colors
 COLOR_SKY = (43, 89, 144)
 COLOR_GRASS = (36, 110, 67)
+COLOR_GRASS_LIGHT = (95, 175, 80)
+COLOR_GRASS_DARK = (22, 75, 35)
 COLOR_ROAD = (56, 56, 56)
 COLOR_ROAD_BORDER = (194, 194, 194)
 COLOR_SIDEWALK_YELLOW = (255, 204, 0)
@@ -61,31 +63,38 @@ class Road:
 
     def _create_grass_texture(self):
         """Create a grass texture pattern once and reuse it"""
-        grass_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        grass_surface.fill(COLOR_GRASS)
+        grass_surface = pygame.Surface((ROAD_BORDER, SCREEN_HEIGHT))
 
-        # Add grass blades and highlights for a lively look
-        for _ in range(5500):
-            x = random.randint(0, SCREEN_WIDTH - 1)
+        # Base gradient for depth
+        for y in range(SCREEN_HEIGHT):
+            t = y / SCREEN_HEIGHT
+            r = int(COLOR_GRASS[0] * (1 - t) + COLOR_GRASS_LIGHT[0] * t)
+            g = int(COLOR_GRASS[1] * (1 - t) + COLOR_GRASS_LIGHT[1] * t)
+            b = int(COLOR_GRASS[2] * (1 - t) + COLOR_GRASS_LIGHT[2] * t)
+            pygame.draw.line(grass_surface, (r, g, b), (0, y), (ROAD_BORDER, y))
+
+        # Draw grass blades and tufts
+        for _ in range(2800):
+            x = random.randint(0, ROAD_BORDER - 1)
             y = random.randint(0, SCREEN_HEIGHT - 1)
-            length = random.randint(4, 10)
-            angle = random.uniform(-0.4, 0.4)
+            length = random.randint(6, 14)
+            angle = random.uniform(-0.5, 0.5)
             blade_color = (
-                max(0, min(255, COLOR_GRASS[0] + random.randint(-20, 20))),
-                max(0, min(255, COLOR_GRASS[1] + random.randint(-35, 35))),
-                max(0, min(255, COLOR_GRASS[2] + random.randint(-15, 15)))
+                max(0, min(255, COLOR_GRASS[0] + random.randint(-18, 18))),
+                max(0, min(255, COLOR_GRASS[1] + random.randint(-40, 40))),
+                max(0, min(255, COLOR_GRASS[2] + random.randint(-18, 18)))
             )
             end_x = int(x + length * math.cos(angle))
             end_y = int(y + length * math.sin(angle))
             pygame.draw.line(grass_surface, blade_color, (x, y), (end_x, end_y), 1)
 
-        for _ in range(2500):
-            x = random.randint(0, SCREEN_WIDTH - 1)
+        for _ in range(1400):
+            x = random.randint(0, ROAD_BORDER - 1)
             y = random.randint(0, SCREEN_HEIGHT - 1)
             dot_color = (
-                max(0, min(255, COLOR_GRASS[0] + random.randint(-10, 10))),
-                max(0, min(255, COLOR_GRASS[1] + random.randint(0, 25))),
-                max(0, min(255, COLOR_GRASS[2] + random.randint(-10, 10)))
+                max(0, min(255, COLOR_GRASS_LIGHT[0] + random.randint(-10, 10))),
+                max(0, min(255, COLOR_GRASS_LIGHT[1] + random.randint(-10, 10))),
+                max(0, min(255, COLOR_GRASS_LIGHT[2] + random.randint(-10, 10)))
             )
             grass_surface.set_at((x, y), dot_color)
 
@@ -106,9 +115,11 @@ class Road:
                 pygame.draw.rect(self.screen, color, (tile_x, tile_y, tile_size, tile_size))
 
     def draw(self):
-        self.screen.blit(self.grass_surface, (0, 0))
-        
+        self.screen.fill(COLOR_SKY)
         road_x = (SCREEN_WIDTH - ROAD_WIDTH) // 2
+        self.screen.blit(self.grass_surface, (0, 0))
+        self.screen.blit(self.grass_surface, (SCREEN_WIDTH - ROAD_BORDER, 0))
+
         pygame.draw.rect(self.screen, COLOR_ROAD, (road_x, 0, ROAD_WIDTH, SCREEN_HEIGHT))
         self.draw_sidewalk(road_x - ROAD_BORDER, ROAD_BORDER)
         self.draw_sidewalk(road_x + ROAD_WIDTH, ROAD_BORDER)
@@ -137,61 +148,88 @@ class Car:
         self.rotation = 0
         self.target_x = x
 
+        # Smaller hitbox to match the visible supercar shape
+        hitbox_width = int(width * 0.9)
+        hitbox_height = int(height * 0.55)
+        self.collision_rect = pygame.Rect(0, 0, hitbox_width, hitbox_height)
+        self.collision_rect.center = self.rect.center
+
+    def update_collision_rect(self):
+        self.collision_rect.center = self.rect.center
+
     def draw(self, surface):
         x, y = self.rect.center
         w = self.rect.width // 2
         h = self.rect.height // 2
-        
-        # Draw shadow
-        shadow_points = [
-            (x - w * 0.9, y + h * 0.7),
-            (x + w * 0.9, y + h * 0.7),
-            (x + w * 0.7, y + h + 4),
-            (x - w * 0.7, y + h + 4)
-        ]
-        pygame.draw.polygon(surface, COLOR_SHADOW, shadow_points)
-        
-        # Draw car body
+
+        # Draw shadow beneath the car
+        shadow_rect = pygame.Rect(int(x - w * 0.9), int(y + h * 0.55), int(w * 1.8), int(h * 0.26))
+        pygame.draw.ellipse(surface, COLOR_SHADOW, shadow_rect)
+
+        # Main supercar body
         body_points = [
-            (x - w * 0.8, y - h * 0.3),  # top-left
-            (x + w * 0.8, y - h * 0.3),  # top-right
-            (x + w * 0.9, y + h * 0.4),  # middle-right
-            (x + w * 0.9, y + h),        # bottom-right
-            (x - w * 0.9, y + h),        # bottom-left
-            (x - w * 0.9, y + h * 0.4),  # middle-left
+            (x - w * 0.9, y + h * 0.2),
+            (x - w * 0.85, y - h * 0.3),
+            (x - w * 0.35, y - h * 0.45),
+            (x + w * 0.35, y - h * 0.45),
+            (x + w * 0.85, y - h * 0.3),
+            (x + w * 0.9, y + h * 0.2),
         ]
         pygame.draw.polygon(surface, self.color, body_points)
-        pygame.draw.polygon(surface, (0, 0, 0), body_points, 2)
-        
-        # Draw windows (top and bottom)
-        window_top = [
-            (x - w * 0.6, y - h * 0.2),
-            (x + w * 0.6, y - h * 0.2),
-            (x + w * 0.5, y),
-            (x - w * 0.5, y),
-        ]
-        pygame.draw.polygon(surface, (100, 150, 200), window_top)
-        pygame.draw.polygon(surface, (0, 0, 0), window_top, 1)
-        
-        window_bottom = [
-            (x - w * 0.6, y + h * 0.2),
-            (x + w * 0.6, y + h * 0.2),
-            (x + w * 0.7, y + h * 0.7),
-            (x - w * 0.7, y + h * 0.7),
-        ]
-        pygame.draw.polygon(surface, (100, 150, 200), window_bottom)
-        pygame.draw.polygon(surface, (0, 0, 0), window_bottom, 1)
-        
-        # Draw wheels
-        wheel_radius = w * 0.35
-        wheel_left_y = y + h * 0.5
-        wheel_right_y = y + h * 0.5
-        pygame.draw.circle(surface, (30, 30, 30), (int(x - w * 0.7), int(wheel_left_y)), int(wheel_radius))
-        pygame.draw.circle(surface, (30, 30, 30), (int(x + w * 0.7), int(wheel_right_y)), int(wheel_radius))
-        # Wheel rims
-        pygame.draw.circle(surface, (100, 100, 100), (int(x - w * 0.7), int(wheel_left_y)), int(wheel_radius * 0.6))
-        pygame.draw.circle(surface, (100, 100, 100), (int(x + w * 0.7), int(wheel_right_y)), int(wheel_radius * 0.6))
+        pygame.draw.polygon(surface, (10, 10, 10), body_points, 3)
 
+        # Hood and roof
+        hood_points = [
+            (x - w * 0.75, y + h * 0.1),
+            (x - w * 0.25, y - h * 0.35),
+            (x + w * 0.25, y - h * 0.35),
+            (x + w * 0.75, y + h * 0.1),
+        ]
+        pygame.draw.polygon(surface, (max(0, self.color[0] - 20), max(0, self.color[1] - 20), max(0, self.color[2] - 20)), hood_points)
+        pygame.draw.polygon(surface, (0, 0, 0), hood_points, 2)
+
+        roof_rect = pygame.Rect(int(x - w * 0.35), int(y - h * 0.45), int(w * 0.7), int(h * 0.35))
+        pygame.draw.rect(surface, (120, 190, 240), roof_rect, border_radius=8)
+        pygame.draw.rect(surface, (0, 0, 0), roof_rect, 2, border_radius=8)
+
+        # Front splitter and headlights
+        front_rect = pygame.Rect(int(x - w * 0.9), int(y + h * 0.1), int(w * 1.8), int(h * 0.2))
+        pygame.draw.rect(surface, (30, 30, 30), front_rect)
+        pygame.draw.line(surface, (255, 255, 255), (x - w * 0.9, y + h * 0.1), (x + w * 0.9, y + h * 0.1), 3)
+
+        headlight_w = int(w * 0.18)
+        headlight_h = int(h * 0.12)
+        pygame.draw.rect(surface, (230, 230, 120), (x - w * 0.8, y + h * 0.12, headlight_w, headlight_h), border_radius=4)
+        pygame.draw.rect(surface, (230, 230, 120), (x + w * 0.62, y + h * 0.12, headlight_w, headlight_h), border_radius=4)
+
+        # Rear spoiler
+        spoiler_points = [
+            (x - w * 0.65, y + h * 0.15),
+            (x - w * 0.55, y + h * 0.35),
+            (x + w * 0.55, y + h * 0.35),
+            (x + w * 0.65, y + h * 0.15),
+        ]
+        pygame.draw.polygon(surface, (20, 20, 20), spoiler_points)
+        pygame.draw.polygon(surface, (0, 0, 0), spoiler_points, 2)
+
+        # Wheels
+        wheel_w = int(w * 0.3)
+        wheel_h = int(h * 0.3)
+        wheel_positions = [
+            (x - w * 0.7, y + h * 0.25),
+            (x + w * 0.7 - wheel_w, y + h * 0.25),
+            (x - w * 0.7, y - h * 0.05),
+            (x + w * 0.7 - wheel_w, y - h * 0.05),
+        ]
+        for wx, wy in wheel_positions:
+            wheel_rect = pygame.Rect(int(wx), int(wy), wheel_w, wheel_h)
+            pygame.draw.ellipse(surface, (25, 25, 25), wheel_rect)
+            pygame.draw.ellipse(surface, (90, 90, 90), wheel_rect.inflate(-wheel_w * 0.3, -wheel_h * 0.3))
+            pygame.draw.ellipse(surface, (0, 0, 0), wheel_rect, 2)
+
+        # Accent lines for a supercar look
+        pygame.draw.aaline(surface, (255, 255, 255), (x - w * 0.7, y), (x - w * 0.15, y - h * 0.25))
+        pygame.draw.aaline(surface, (255, 255, 255), (x + w * 0.7, y), (x + w * 0.15, y - h * 0.25))
 
 class Player(Car):
     def __init__(self):
@@ -200,24 +238,28 @@ class Player(Car):
         super().__init__(start_x, start_y, PLAYER_WIDTH, PLAYER_HEIGHT, COLOR_PLAYER)
         self.speed = 0
         self.max_speed = 14
+        self.max_reverse_speed = 3
         self.acceleration = 0.4
-        self.deceleration = 0.3
+        self.reverse_acceleration = 0.6
         self.turn_speed = 5
         self.friction = 0.18
         self.lane = LANE_COUNT // 2
 
     def update(self, keys):
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
+        forward = keys[pygame.K_UP] or keys[pygame.K_w]
+        reverse = keys[pygame.K_DOWN] or keys[pygame.K_s]
+
+        if forward and not reverse:
             self.speed += self.acceleration
-        elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.speed -= self.deceleration
+        elif reverse and not forward:
+            self.speed -= self.reverse_acceleration
         else:
             if self.speed > 0:
                 self.speed -= self.friction
             elif self.speed < 0:
                 self.speed += self.friction
 
-        self.speed = clamp(self.speed, -3, self.max_speed)
+        self.speed = clamp(self.speed, -self.max_reverse_speed, self.max_speed)
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.rect.x -= self.turn_speed + self.speed * 0.15
@@ -227,6 +269,7 @@ class Player(Car):
         left_limit = (SCREEN_WIDTH - ROAD_WIDTH) // 2 + 10
         right_limit = (SCREEN_WIDTH + ROAD_WIDTH) // 2 - self.rect.width - 10
         self.rect.x = clamp(self.rect.x, left_limit, right_limit)
+        self.update_collision_rect()
 
         self.rotation = -self.speed * 2 if keys[pygame.K_LEFT] else self.speed * 2 if keys[pygame.K_RIGHT] else 0
 
@@ -241,6 +284,7 @@ class Enemy(Car):
 
     def update(self, game_speed):
         self.rect.y += self.speed + game_speed
+        self.update_collision_rect()
 
     def off_screen(self):
         return self.rect.top > SCREEN_HEIGHT + 50
@@ -260,6 +304,7 @@ class Game:
         self.spawn_timer = 0
         self.running = True
         self.active = False
+        self.paused = False
         self.game_speed = 0
         self.level = 1
         self.spawn_delay = SPAWN_INTERVAL
@@ -273,6 +318,7 @@ class Game:
         self.level = 1
         self.spawn_delay = SPAWN_INTERVAL
         self.active = True
+        self.paused = False
         self.spawn_timer = 0
         self.last_level_increase = pygame.time.get_ticks()
 
@@ -285,7 +331,7 @@ class Game:
 
     def update(self, dt):
         keys = pygame.key.get_pressed()
-        if self.active:
+        if self.active and not self.paused:
             self.player.update(keys)
             self.game_speed = clamp(self.player.speed * 0.65, 3, 10)
             self.road.update(self.game_speed)
@@ -313,31 +359,37 @@ class Game:
 
     def check_collision(self):
         for enemy in self.enemies:
-            if self.player.rect.colliderect(enemy.rect):
+            if self.player.collision_rect.colliderect(enemy.collision_rect):
                 return True
         return False
 
     def draw_overlay(self):
-        if not self.active:
+        if not self.active or self.paused:
             overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
             overlay.fill((10, 10, 10, 180))
             self.screen.blit(overlay, (0, 0))
-            if self.score == 0:
-                draw_text(self.screen, "PYGAME CAR RACER", 48, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3, center=True)
-                draw_text(self.screen, "Use arrow keys or WASD to drive", 26, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 10, center=True)
-                draw_text(self.screen, "Avoid other cars and survive as long as possible", 22, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30, center=True)
-                draw_text(self.screen, "Press SPACE to start", 28, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 90, COLOR_ACCENT, center=True)
+            if not self.active:
+                if self.score == 0:
+                    draw_text(self.screen, "PYGAME CAR RACER", 48, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3, center=True)
+                    draw_text(self.screen, "Use arrow keys or WASD to drive", 26, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 10, center=True)
+                    draw_text(self.screen, "Avoid other cars and survive as long as possible", 22, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30, center=True)
+                    draw_text(self.screen, "Press SPACE to start", 28, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 90, COLOR_ACCENT, center=True)
+                else:
+                    draw_text(self.screen, "GAME OVER", 56, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3, center=True)
+                    draw_text(self.screen, f"Score: {int(self.score)}", 32, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, center=True)
+                    draw_text(self.screen, f"High Score: {int(self.high_score)}", 28, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50, center=True)
+                    draw_text(self.screen, "Press SPACE to restart", 26, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 110, COLOR_ACCENT, center=True)
             else:
-                draw_text(self.screen, "GAME OVER", 56, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3, center=True)
-                draw_text(self.screen, f"Score: {int(self.score)}", 32, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, center=True)
-                draw_text(self.screen, f"High Score: {int(self.high_score)}", 28, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 50, center=True)
-                draw_text(self.screen, "Press SPACE to restart", 26, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 110, COLOR_ACCENT, center=True)
+                draw_text(self.screen, "GAME PAUSED", 56, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3, center=True)
+                draw_text(self.screen, "Press P to resume", 28, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, COLOR_ACCENT, center=True)
+                draw_text(self.screen, "Press SPACE to restart", 22, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 60, center=True)
 
     def draw_ui(self):
         draw_text(self.screen, f"Score: {int(self.score)}", 24, 20, 20)
         draw_text(self.screen, f"High Score: {int(self.high_score)}", 24, 20, 50)
         draw_text(self.screen, f"Speed: {int(self.player.speed * 10)} km/h", 24, 20, 80)
         draw_text(self.screen, f"Level: {self.level}", 24, SCREEN_WIDTH - 150, 20)
+        draw_text(self.screen, "Press P to pause", 18, SCREEN_WIDTH - 190, 50)
 
     def run(self):
         while self.running:
@@ -349,6 +401,8 @@ class Game:
                     if event.key == pygame.K_SPACE:
                         if not self.active:
                             self.reset()
+                    elif event.key == pygame.K_p and self.active:
+                        self.paused = not self.paused
 
             self.update(dt)
             self.road.draw()
@@ -356,7 +410,7 @@ class Game:
             for enemy in self.enemies:
                 enemy.draw(self.screen)
             self.draw_ui()
-            if not self.active:
+            if not self.active or self.paused:
                 self.draw_overlay()
 
             pygame.display.flip()
